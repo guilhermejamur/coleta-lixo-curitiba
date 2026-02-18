@@ -1,0 +1,82 @@
+{
+  "cidade": {
+    "nome": "Curitiba",
+    "estado": "PR",
+    "coordenadas": [-25.4284, -49.2733],
+    "zoom": 12,
+    "boundingBox": "-49.45,-25.25,-49.10,-25.65"
+  },
+  
+  "contato": {
+    "telefone": "156",
+    "url": "https://central156.curitiba.pr.gov.br/",
+    "textoAtendimento": "Central de Atendimento ao Cidadão"
+  },
+  
+  "logos": {
+    "prefeitura": "images/prefeitura.svg",
+    "empresa": "images/empresa.svg"
+  },
+  
+  "textos": {
+    "tituloPrefeitura": "Prefeitura de Curitiba",
+    "tituloEmpresa": "Estre - Lixo é só o começo",
+    "subtitulo": "Descubra os dias e horários da coleta domiciliar e seletiva na sua região.",
+    "placeholder": "Digite seu endereço...",
+    "rodape": {
+      "prefeitura": "© 2026 Prefeitura Municipal de Curitiba",
+      "empresa": "Concessionária Estre — Serviços de Limpeza Urbana"
+    }
+  },
+  
+  "cores": {
+    "primaria": "#2d8a5b",
+    "secundaria": "#3b9ebf",
+    "fundo": "#f5f9f7",
+    "texto": "#1a2e35",
+    "textoClaro": "#5a7a85",
+    "cartao": "#ffffff",
+    "borda": "#e0ebe5",
+    "destaque": "#e8f4ed"
+  },
+  
+  "arquivosGeoJSON": {
+    "coletaSeletiva": "data/coleta_seletiva.geojson",
+    "coletaDomiciliar": "data/coleta_domiciliar.geojson"
+  },
+  
+  "faqs": [
+    {
+      "pergunta": "Como descartar vidros e materiais cortantes?",
+      "resposta": "Vidros e materiais cortantes devem ser embalados em papel grosso (como jornal) ou caixa de papelão e identificados com a inscrição 'VIDRO' ou 'CORTANTE'. Nunca descarte esses materiais em sacolas plásticas comuns, pois podem causar acidentes aos coletores."
+    },
+    {
+      "pergunta": "Qual o horário limite para colocar o lixo na calçada?",
+      "resposta": "O lixo deve ser colocado na calçada com no máximo 1 hora de antecedência ao horário previsto para a passagem do caminhão. Evite colocar o lixo muito cedo para não causar problemas de higiene e mau cheiro na vizinhança."
+    },
+    {
+      "pergunta": "O que fazer se o caminhão não passar?",
+      "resposta": "Caso o caminhão de coleta não passe no horário previsto, aguarde até o final do dia. Se a coleta não for realizada, entre em contato com a Central de Atendimento 156 para registrar uma reclamação e solicitar a coleta pendente."
+    },
+    {
+      "pergunta": "O que pode ser reciclado na Coleta Seletiva?",
+      "resposta": "Podem ser reciclados: papéis (jornais, revistas, caixas), plásticos (garrafas PET, embalagens), metais (latas de alumínio, latas de aço) e vidros (garrafas, potes). Lembre-se de lavar as embalagens antes de descartá-las para reciclagem."
+    },
+    {
+      "pergunta": "Como descartar lixo eletrônico?",
+      "resposta": "Lixo eletrônico como pilhas, baterias, celulares e computadores não devem ser descartados na coleta comum. Leve esses materiais aos pontos de coleta específicos, como os Ecopontos espalhados pela cidade ou nos locais de entrega voluntária."
+    },
+    {
+      "pergunta": "Como descartar seringas e agulhas?",
+      "resposta": "Seringas e agulhas devem ser colocadas em recipientes rígidos e resistentes a perfuração, como garrafas PET grossas ou caixas coletoras específicas. Nunca descarte esses materiais no lixo comum ou reciclável. Leve aos postos de saúde ou farmácias que possuem pontos de coleta."
+    },
+    {
+      "pergunta": "Como descartar remédios vencidos?",
+      "resposta": "Remédios vencidos ou em desuso não devem ser jogados no lixo comum nem no vaso sanitário, pois contaminam o solo e a água. Leve-os até uma farmácia ou Unidade de Saúde que possua ponto de coleta de medicamentos."
+    },
+    {
+      "pergunta": "Como descartar resíduos hospitalares?",
+      "resposta": "Resíduos hospitalares como curativos, gazes, luvas e materiais contaminados devem ser embalados em sacos brancos leitosos e identificados. Esses materiais não vão na coleta comum. Entre em contato com a Central 156 para orientações."
+    }
+  ]
+}
