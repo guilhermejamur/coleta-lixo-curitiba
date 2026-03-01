@@ -193,40 +193,73 @@ function setupEventListeners() {
     });
 }
 
-// ===== BUSCAR ENDEREÇO (Nominatim) =====
+// ===== BUSCAR ENDEREÇO (Mapbox) =====
 async function buscarEndereco(query) {
     try {
-        const bbox = config.cidade.boundingBox;
-        // Adiciona addressdetails=1 para receber componentes do endereço separados
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}, ${config.cidade.nome}, ${config.cidade.estado}&limit=5&bounded=1&viewbox=${bbox}&addressdetails=1`;
-        
-        const response = await fetch(url, {
-            headers: { 'Accept-Language': 'pt-BR' }
-        });
-        
-        const resultados = await response.json();
-        mostrarAutocomplete(resultados);
+        const [lat, lon] = config.cidade.coordenadas;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${config.mapboxToken}&country=BR&proximity=${lon},${lat}&types=address,place&language=pt&limit=5`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+        const numeroDigitado = extrairNumeroDoTexto(query);
+
+        const resultados = (data.features || []).map(feature => ({
+            lat: feature.center[1],
+            lon: feature.center[0],
+            display_name: feature.place_name,
+            address: extrairEnderecoMapbox(feature)
+        }));
+
+        mostrarAutocomplete(resultados, numeroDigitado);
     } catch (error) {
         console.error('Erro na busca:', error);
     }
 }
 
+function extrairEnderecoMapbox(feature) {
+    const context = feature.context || [];
+    const address = {};
+
+    if (feature.text) address.road = feature.text;
+    if (feature.address) address.house_number = feature.address;
+
+    context.forEach(item => {
+        if (item.id.startsWith('neighborhood')) address.suburb = item.text;
+        else if (item.id.startsWith('locality')) address.suburb = address.suburb || item.text;
+        else if (item.id.startsWith('place')) address.city = item.text;
+        else if (item.id.startsWith('district')) address.district = item.text;
+    });
+
+    return address;
+}
+
+function extrairNumeroDoTexto(texto) {
+    const match = texto.match(/[,\s]+(\d+)[\s]*$|[,\s]+n[º°]?\s*(\d+)|numero\s*(\d+)/i);
+    if (match) {
+        return match[1] || match[2] || match[3];
+    }
+    const matchFinal = texto.match(/\s(\d+)\s*$/);
+    if (matchFinal) {
+        return matchFinal[1];
+    }
+    return null;
+}
+
 // ===== MOSTRAR AUTOCOMPLETE =====
-function mostrarAutocomplete(resultados) {
+function mostrarAutocomplete(resultados, numeroDigitado = null) {
     const lista = document.getElementById('autocomplete-list');
     lista.innerHTML = '';
-    
+
     if (!resultados.length) {
         lista.innerHTML = '<li class="autocomplete-item" style="cursor: default; color: var(--cor-texto-claro);">Nenhum endereço encontrado</li>';
         return;
     }
-    
+
     resultados.forEach(item => {
         const li = document.createElement('li');
         li.className = 'autocomplete-item';
-        // Exibir endereço formatado curto na lista
-        li.textContent = formatarEnderecoExibicao(item);
-        li.addEventListener('click', () => selecionarEndereco(item));
+        li.textContent = formatarEnderecoExibicao(item, numeroDigitado);
+        li.addEventListener('click', () => selecionarEndereco(item, numeroDigitado));
         lista.appendChild(li);
     });
 }
@@ -237,53 +270,40 @@ function limparAutocomplete() {
 }
 
 // ===== SELECIONAR ENDEREÇO =====
-async function selecionarEndereco(item) {
+async function selecionarEndereco(item, numeroDigitado = null) {
     const lat = parseFloat(item.lat);
     const lon = parseFloat(item.lon);
-    
-    // Formatar endereço curto
-    const endereco = formatarEnderecoExibicao(item);
-    
+    const endereco = formatarEnderecoExibicao(item, numeroDigitado);
+
     document.getElementById('endereco-input').value = endereco;
     limparAutocomplete();
-    
+
     await processarLocalizacao(lat, lon, endereco);
 }
 
 // ===== FORMATAR ENDEREÇO PARA EXIBIÇÃO =====
-function formatarEnderecoExibicao(item) {
+function formatarEnderecoExibicao(item, numeroDigitado = null) {
     const address = item.address || {};
-    
-    // Montar endereço curto: Rua, Número - Bairro, Cidade
     let partes = [];
-    
-    // Rua
+
     const rua = address.road || address.street || address.pedestrian || address.footway || '';
     if (rua) partes.push(rua);
-    
-    // Número
-    const numero = address.house_number || '';
+
+    const numero = numeroDigitado || address.house_number || '';
     if (numero && partes.length > 0) {
         partes[0] = partes[0] + ', ' + numero;
     }
-    
-    // Bairro
+
     const bairro = address.suburb || address.neighbourhood || address.district || '';
     if (bairro) partes.push(bairro);
-    
-    // Cidade
+
     const cidade = address.city || address.town || address.municipality || config.cidade.nome;
     if (cidade) partes.push(cidade);
-    
-    // Se não conseguiu montar, usa display_name simplificado
+
     if (partes.length === 0) {
-        return item.display_name
-            .split(',')
-            .slice(0, 3)
-            .join(',')
-            .trim();
+        return item.display_name.split(',').slice(0, 3).join(',').trim();
     }
-    
+
     return partes.join(' - ');
 }
 
@@ -304,11 +324,16 @@ function usarGeolocalizacao() {
             // Reverse geocoding para pegar o endereço
             try {
                 const response = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
-                    { headers: { 'Accept-Language': 'pt-BR' } }
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?access_token=${config.mapboxToken}&language=pt&types=address`
                 );
                 const data = await response.json();
-                const endereco = formatarEnderecoExibicao(data);
+
+                let endereco = 'Sua localização';
+                if (data.features && data.features.length > 0) {
+                    const feature = data.features[0];
+                    const addressData = extrairEnderecoMapbox(feature);
+                    endereco = formatarEnderecoExibicao({ address: addressData }, null);
+                }
                 
                 document.getElementById('endereco-input').value = endereco;
                 document.getElementById('btn-limpar').style.display = 'flex';

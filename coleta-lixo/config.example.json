@@ -1,4 +1,6 @@
 {
+  "mapboxToken": "SEU_TOKEN_MAPBOX_AQUI",
+
   "cidade": {
     "nome": "Curitiba",
     "estado": "PR",
@@ -6,18 +8,18 @@
     "zoom": 12,
     "boundingBox": "-49.45,-25.25,-49.10,-25.65"
   },
-  
+
   "contato": {
     "telefone": "156",
     "url": "https://central156.curitiba.pr.gov.br/",
     "textoAtendimento": "Central de Atendimento ao Cidadão"
   },
-  
+
   "logos": {
     "prefeitura": "images/prefeitura.png",
     "empresa": "images/empresa.png"
   },
-  
+
   "textos": {
     "tituloPrefeitura": "Prefeitura de Curitiba",
     "tituloEmpresa": "Cavo Estre - Lixo é só o começo",
@@ -28,7 +30,7 @@
       "empresa": "Cavo Estre — Serviços de Limpeza Urbana"
     }
   },
-  
+
   "cores": {
     "primaria": "#2d8a5b",
     "secundaria": "#3b9ebf",
@@ -39,12 +41,12 @@
     "borda": "#e0ebe5",
     "destaque": "#e8f4ed"
   },
-  
+
   "arquivosGeoJSON": {
     "coletaSeletiva": "data/coleta_seletiva.geojson",
     "coletaDomiciliar": "data/coleta_domiciliar.geojson"
   },
-  
+
   "faqs": [
     {
       "pergunta": "Como descartar pilhas, baterias, toner, inseticidas, tintas, colas e solventes?",
