@@ -197,7 +197,10 @@ function setupEventListeners() {
 async function buscarEndereco(query) {
     try {
         const [lat, lon] = config.cidade.coordenadas;
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${config.mapboxToken}&country=BR&proximity=${lon},${lat}&types=address,place&language=pt&limit=5`;
+        // config.boundingBox: west,north,east,south → Mapbox bbox: west,south,east,north
+        const bb = config.cidade.boundingBox.split(',');
+        const bbox = `${bb[0]},${bb[3]},${bb[2]},${bb[1]}`;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${config.mapboxToken}&country=BR&proximity=${lon},${lat}&bbox=${bbox}&types=address&language=pt&limit=5`;
 
         const response = await fetch(url);
         const data = await response.json();
