@@ -143,39 +143,47 @@ async function carregarConfig(request, env) {
 }
 
 // ─────────────────────────────────────────────
-// Geocodificação via Nominatim (OpenStreetMap)
-// Gratuito, sem restrição de domínio, ideal para server-side
+// Geocodificação via Mapbox
+// O Worker não envia Referer automaticamente, então precisamos
+// enviá-lo manualmente para passar na validação do token (pk.).
+// O domínio abaixo deve estar na lista de URLs permitidas no Mapbox:
+//   mapbox.com → Account → Tokens → editar token → Allowed URLs
 // ─────────────────────────────────────────────
-async function geocodificar(endereco, _token, config) {
+async function geocodificar(endereco, token, config) {
   const bb = config.cidade?.boundingBox?.split(',') || [];
-  // Nominatim viewbox: west,south,east,north
-  const viewbox = bb.length === 4 ? `${bb[0]},${bb[3]},${bb[2]},${bb[1]}` : null;
+  const bbox = bb.length === 4 ? `${bb[0]},${bb[3]},${bb[2]},${bb[1]}` : '';
+  const [lat, lon] = config.cidade?.coordenadas || [];
 
   const params = new URLSearchParams({
-    q: endereco,
-    format: 'json',
+    access_token: token,
+    country: 'BR',
+    types: 'address',
+    language: 'pt',
     limit: '1',
-    countrycodes: 'br',
-    addressdetails: '1',
-    ...(viewbox ? { viewbox, bounded: '1' } : {}),
+    ...(lon && lat ? { proximity: `${lon},${lat}` } : {}),
+    ...(bbox ? { bbox } : {}),
   });
 
-  const url = `https://nominatim.openstreetmap.org/search?${params}`;
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(endereco)}.json?${params}`;
+
   const resp = await fetch(url, {
     headers: {
-      // Nominatim exige User-Agent identificando a aplicação
-      'User-Agent': 'coleta-lixo-curitiba/1.0 (contato@cavo.com.br)',
-      'Accept-Language': 'pt-BR,pt',
+      // Necessário para passar a validação de domínio do token Mapbox (pk.)
+      // Adicione este domínio na lista de URLs permitidas em:
+      //   mapbox.com → Account → Tokens → editar token → Allowed URLs
+      'Referer': 'https://coleta-lixo-curitiba.pages.dev',
+      'Origin': 'https://coleta-lixo-curitiba.pages.dev',
     },
   });
 
   const data = await resp.json();
-  if (!data?.length) return null;
+  if (!data.features?.length) return null;
 
+  const feature = data.features[0];
   return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-    display_name: data[0].display_name,
+    lat: feature.center[1],
+    lng: feature.center[0],
+    display_name: feature.place_name,
   };
 }
 
