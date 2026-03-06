@@ -143,34 +143,39 @@ async function carregarConfig(request, env) {
 }
 
 // ─────────────────────────────────────────────
-// Geocodificação via Mapbox
+// Geocodificação via Nominatim (OpenStreetMap)
+// Gratuito, sem restrição de domínio, ideal para server-side
 // ─────────────────────────────────────────────
-async function geocodificar(endereco, token, config) {
+async function geocodificar(endereco, _token, config) {
   const bb = config.cidade?.boundingBox?.split(',') || [];
-  const bbox = bb.length === 4 ? `${bb[0]},${bb[3]},${bb[2]},${bb[1]}` : '';
-  const [lat, lon] = config.cidade?.coordenadas || [];
+  // Nominatim viewbox: west,south,east,north
+  const viewbox = bb.length === 4 ? `${bb[0]},${bb[3]},${bb[2]},${bb[1]}` : null;
 
   const params = new URLSearchParams({
-    access_token: token,
-    country: 'BR',
-    types: 'address',
-    language: 'pt',
+    q: endereco,
+    format: 'json',
     limit: '1',
-    ...(lon && lat ? { proximity: `${lon},${lat}` } : {}),
-    ...(bbox ? { bbox } : {}),
+    countrycodes: 'br',
+    addressdetails: '1',
+    ...(viewbox ? { viewbox, bounded: '1' } : {}),
   });
 
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(endereco)}.json?${params}`;
-  const resp = await fetch(url);
+  const url = `https://nominatim.openstreetmap.org/search?${params}`;
+  const resp = await fetch(url, {
+    headers: {
+      // Nominatim exige User-Agent identificando a aplicação
+      'User-Agent': 'coleta-lixo-curitiba/1.0 (contato@cavo.com.br)',
+      'Accept-Language': 'pt-BR,pt',
+    },
+  });
+
   const data = await resp.json();
+  if (!data?.length) return null;
 
-  if (!data.features?.length) return null;
-
-  const feature = data.features[0];
   return {
-    lat: feature.center[1],
-    lng: feature.center[0],
-    display_name: feature.place_name,
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    display_name: data[0].display_name,
   };
 }
 
