@@ -41,7 +41,8 @@ function aplicarConfig() {
     
     // Logos
     document.getElementById('logo-prefeitura').src = config.logos.prefeitura;
-    document.getElementById('logo-empresa').src = config.logos.empresa;
+    const logoEmpresa = document.getElementById('logo-empresa');
+    if (logoEmpresa) logoEmpresa.src = config.logos.empresa;
     
     // Textos
     document.getElementById('titulo-principal').textContent = `Coleta de Lixo - ${config.cidade.nome}`;
