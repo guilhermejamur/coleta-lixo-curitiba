@@ -40,9 +40,9 @@ function aplicarConfig() {
     root.style.setProperty('--cor-destaque', config.cores.destaque);
     
     // Logos
-    document.getElementById('logo-prefeitura').src = config.logos.prefeitura;
-    const logoEmpresa = document.getElementById('logo-empresa');
-    if (logoEmpresa) logoEmpresa.src = config.logos.empresa;
+    const logoPrefeitura = document.getElementById('logo-prefeitura');
+    if (logoPrefeitura) logoPrefeitura.src = config.logos.prefeitura;
+    document.getElementById('logo-empresa').src = config.logos.empresa;
     
     // Textos
     document.getElementById('titulo-principal').textContent = `Coleta de Lixo - ${config.cidade.nome}`;
