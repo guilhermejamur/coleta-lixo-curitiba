@@ -1,0 +1,2 @@
+# Evita conflito com Clean URLs do Cloudflare Pages
+/dashboard /dashboard/index.html 200
