@@ -71,7 +71,7 @@ export async function onRequest(context) {
     }
 
     // Registrar estatística sem bloquear a resposta
-    context.waitUntil(registrarEstatistica(env, fonte));
+    context.waitUntil(registrarEstatistica(env, 'curitiba', fonte));
 
     return jsonResponse(resultados);
 
@@ -84,14 +84,14 @@ export async function onRequest(context) {
 // ─────────────────────────────────────────────
 // Estatísticas de uso por provedor (KV)
 // ─────────────────────────────────────────────
-async function registrarEstatistica(env, fonte) {
+async function registrarEstatistica(env, cidade, fonte) {
   if (!env.COLETA_STATS) return;
   try {
     const hoje = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
     const mes  = hoje.slice(0, 7);                        // YYYY-MM
     await Promise.all([
-      incrementarContador(env, `stats:${hoje}`, fonte, 60 * 60 * 24 * 92),  // 92 dias
-      incrementarContador(env, `stats:${mes}`,  fonte, 60 * 60 * 24 * 400), // ~13 meses
+      incrementarContador(env, `stats:${cidade}:${hoje}`, fonte, 60 * 60 * 24 * 92),  // 92 dias
+      incrementarContador(env, `stats:${cidade}:${mes}`,  fonte, 60 * 60 * 24 * 400), // ~13 meses
     ]);
   } catch (e) {
     console.warn('Falha ao registrar estatística:', e);
