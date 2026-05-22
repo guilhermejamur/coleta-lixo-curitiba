@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Coleta de Lixo Curitiba</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --verde:    #2d8a5b;
+      --verde-bg: #e8f4ed;
+      --azul:     #3b9ebf;
+      --amarelo:  #f5a623;
+      --vermelho: #e05252;
+      --cinza:    #5a7a85;
+      --fundo:    #f5f9f7;
+      --borda:    #e0ebe5;
+      --texto:    #1a2e35;
+      --branco:   #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--fundo);
+      color: var(--texto);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--verde);
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p  { font-size: 0.8rem; opacity: 0.85; }
+
+    #atualizado {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* ── Cards de totais ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .card .label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--cinza);
+    }
+    .card .valor {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .card .sub {
+      font-size: 0.8rem;
+      color: var(--cinza);
+    }
+    .card.total  .valor { color: var(--texto); }
+    .card.nom    .valor { color: var(--verde); }
+    .card.mapbox .valor { color: var(--azul); }
+    .card.google .valor { color: var(--amarelo); }
+    .card.nf     .valor { color: var(--vermelho); }
+
+    /* ── Seções de gráfico ── */
+    .secao {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .secao h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: var(--texto);
+    }
+
+    .graficos-linha {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 700px) {
+      .graficos-linha { grid-template-columns: 1fr; }
+    }
+
+    canvas { max-height: 280px; }
+
+    /* ── Tabela mensal ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th, td {
+      padding: 0.6rem 0.75rem;
+      text-align: right;
+      border-bottom: 1px solid var(--borda);
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--cinza);
+      background: var(--fundo);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--fundo); }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15em 0.5em;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .badge.nom    { background: #d4ede1; color: #1a6640; }
+    .badge.mapbox { background: #d0ecf5; color: #1a5f7a; }
+    .badge.google { background: #fdebd0; color: #7a4d00; }
+    .badge.nf     { background: #fad7d7; color: #7a1a1a; }
+
+    /* ── Loading / erro ── */
+    #loading, #erro {
+      text-align: center;
+      padding: 3rem;
+      color: var(--cinza);
+      font-size: 0.95rem;
+    }
+    #erro { color: var(--vermelho); }
+    .hidden { display: none !important; }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.75rem;
+      color: var(--cinza);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📊 Dashboard de Geocodificação</h1>
+    <p>Coleta de Lixo — Curitiba</p>
+  </div>
+  <div id="atualizado"></div>
+</header>
+
+<main>
+  <div id="loading">Carregando estatísticas…</div>
+  <div id="erro" class="hidden"></div>
+
+  <div id="conteudo" class="hidden">
+
+    <!-- Cards -->
+    <div class="cards">
+      <div class="card total">
+        <span class="label">Total (30 dias)</span>
+        <span class="valor" id="c-total">—</span>
+        <span class="sub">buscas de endereço</span>
+      </div>
+      <div class="card nom">
+        <span class="label">Nominatim</span>
+        <span class="valor" id="c-nom">—</span>
+        <span class="sub" id="p-nom">gratuito</span>
+      </div>
+      <div class="card mapbox">
+        <span class="label">Mapbox</span>
+        <span class="valor" id="c-mapbox">—</span>
+        <span class="sub" id="p-mapbox">fallback 1</span>
+      </div>
+      <div class="card google">
+        <span class="label">Google Maps</span>
+        <span class="valor" id="c-google">—</span>
+        <span class="sub" id="p-google">fallback 2</span>
+      </div>
+      <div class="card nf">
+        <span class="label">Não encontrado</span>
+        <span class="valor" id="c-nf">—</span>
+        <span class="sub" id="p-nf">sem resultado</span>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="secao">
+      <h2>Últimos 30 dias</h2>
+      <div class="graficos-linha">
+        <div>
+          <canvas id="grafico-barras"></canvas>
+        </div>
+        <div>
+          <canvas id="grafico-pizza"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela mensal -->
+    <div class="secao">
+      <h2>Resumo mensal</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Mês</th>
+            <th>Total</th>
+            <th>Nominatim</th>
+            <th>Mapbox</th>
+            <th>Google</th>
+            <th>Não encontrado</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-mensal"></tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<footer>Dados armazenados em Cloudflare KV · Atualizado em tempo real</footer>
+
+<script>
+const COR = {
+  nominatim:  '#2d8a5b',
+  mapbox:     '#3b9ebf',
+  google:     '#f5a623',
+  not_found:  '#e05252',
+};
+
+async function carregar() {
+  try {
+    const resp = await fetch('/api/stats');
+    if (!resp.ok) throw new Error(await resp.text());
+    const dados = await resp.json();
+    if (dados.erro) throw new Error(dados.erro);
+    renderizar(dados);
+  } catch (e) {
+    document.getElementById('loading').classList.add('hidden');
+    const el = document.getElementById('erro');
+    el.classList.remove('hidden');
+    el.textContent = '⚠️ ' + e.message;
+  }
+}
+
+function pct(parte, total) {
+  if (!total) return '0%';
+  return (parte / total * 100).toFixed(1) + '%';
+}
+
+function renderizar(dados) {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('conteudo').classList.remove('hidden');
+
+  const t = dados.totais_30d;
+  document.getElementById('c-total').textContent  = t.total.toLocaleString('pt-BR');
+  document.getElementById('c-nom').textContent     = t.nominatim.toLocaleString('pt-BR');
+  document.getElementById('c-mapbox').textContent  = t.mapbox.toLocaleString('pt-BR');
+  document.getElementById('c-google').textContent  = t.google.toLocaleString('pt-BR');
+  document.getElementById('c-nf').textContent      = t.not_found.toLocaleString('pt-BR');
+
+  document.getElementById('p-nom').textContent     = pct(t.nominatim, t.total) + ' do total';
+  document.getElementById('p-mapbox').textContent  = pct(t.mapbox,    t.total) + ' do total';
+  document.getElementById('p-google').textContent  = pct(t.google,    t.total) + ' do total';
+  document.getElementById('p-nf').textContent      = pct(t.not_found, t.total) + ' do total';
+
+  document.getElementById('atualizado').textContent =
+    'Atualizado: ' + new Date().toLocaleString('pt-BR');
+
+  // ── Gráfico de barras (30 dias) ──
+  const labels = dados.diario.map(d => {
+    const [, m, dia] = d.dia.split('-');
+    return `${dia}/${m}`;
+  });
+
+  new Chart(document.getElementById('grafico-barras'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Nominatim', data: dados.diario.map(d => d.nominatim || 0), backgroundColor: COR.nominatim, stack: 's' },
+        { label: 'Mapbox',    data: dados.diario.map(d => d.mapbox    || 0), backgroundColor: COR.mapbox,    stack: 's' },
+        { label: 'Google',    data: dados.diario.map(d => d.google    || 0), backgroundColor: COR.google,    stack: 's' },
+        { label: 'Não enc.',  data: dados.diario.map(d => d.not_found || 0), backgroundColor: COR.not_found, stack: 's' },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: { stacked: true, ticks: { maxRotation: 45, font: { size: 10 } } },
+        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+
+  // ── Gráfico de pizza ──
+  new Chart(document.getElementById('grafico-pizza'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Nominatim', 'Mapbox', 'Google', 'Não encontrado'],
+      datasets: [{
+        data: [t.nominatim, t.mapbox, t.google, t.not_found],
+        backgroundColor: [COR.nominatim, COR.mapbox, COR.google, COR.not_found],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString('pt-BR')} (${pct(ctx.parsed, t.total)})`,
+          },
+        },
+      },
+    },
+  });
+
+  // ── Tabela mensal ──
+  const tbody = document.getElementById('tabela-mensal');
+  dados.mensal.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${m.mes}</strong></td>
+      <td>${(m.total     || 0).toLocaleString('pt-BR')}</td>
+      <td>${(m.nominatim || 0).toLocaleString('pt-BR')} <span class="badge nom">${pct(m.nominatim, m.total)}</span></td>
+      <td>${(m.mapbox    || 0).toLocaleString('pt-BR')} <span class="badge mapbox">${pct(m.mapbox, m.total)}</span></td>
+      <td>${(m.google    || 0).toLocaleString('pt-BR')} <span class="badge google">${pct(m.google, m.total)}</span></td>
+      <td>${(m.not_found || 0).toLocaleString('pt-BR')} <span class="badge nf">${pct(m.not_found, m.total)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+carregar();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "wrangler pages dev coleta-lixo --compatibility-date 2024-09-23",
+    "dev": "wrangler pages dev coleta-lixo --compatibility-date 2024-09-23 --kv COLETA_STATS",
     "deploy": "wrangler pages deploy coleta-lixo --project-name=coleta-lixo-curitiba --commit-dirty=true"
   },
   "devDependencies": {

@@ -46,30 +46,63 @@ export async function onRequest(context) {
   try {
     const config = await carregarConfig(request, env);
 
+    let resultados = [];
+    let fonte = 'not_found';
+
     // 1. Nominatim (OpenStreetMap) — gratuito, sem chave de API
     const resultadosNominatim = await geocodificarNominatim(query, config);
     if (resultadosNominatim.length > 0) {
-      return jsonResponse(resultadosNominatim);
+      resultados = resultadosNominatim;
+      fonte = 'nominatim';
+    } else {
+      // 2. Fallback: Mapbox
+      const resultadosMapbox = await geocodificarMapbox(query, config);
+      if (resultadosMapbox.length > 0) {
+        resultados = resultadosMapbox;
+        fonte = 'mapbox';
+      } else if (env.GOOGLE_MAPS_KEY) {
+        // 3. Fallback final: Google Maps
+        const resultadosGoogle = await geocodificarGoogle(query, config, env.GOOGLE_MAPS_KEY);
+        if (resultadosGoogle.length > 0) {
+          resultados = resultadosGoogle;
+          fonte = 'google';
+        }
+      }
     }
 
-    // 2. Fallback: Mapbox
-    const resultadosMapbox = await geocodificarMapbox(query, config);
-    if (resultadosMapbox.length > 0) {
-      return jsonResponse(resultadosMapbox);
-    }
+    // Registrar estatística sem bloquear a resposta
+    context.waitUntil(registrarEstatistica(env, fonte));
 
-    // 3. Fallback final: Google Maps (chave via variável de ambiente)
-    if (env.GOOGLE_MAPS_KEY) {
-      const resultadosGoogle = await geocodificarGoogle(query, config, env.GOOGLE_MAPS_KEY);
-      return jsonResponse(resultadosGoogle);
-    }
-
-    return jsonResponse([]);
+    return jsonResponse(resultados);
 
   } catch (err) {
     console.error('Erro em /api/geocode:', err);
     return jsonResponse({ erro: 'Erro interno. Tente novamente.' }, 500);
   }
+}
+
+// ─────────────────────────────────────────────
+// Estatísticas de uso por provedor (KV)
+// ─────────────────────────────────────────────
+async function registrarEstatistica(env, fonte) {
+  if (!env.COLETA_STATS) return;
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
+    const mes  = hoje.slice(0, 7);                        // YYYY-MM
+    await Promise.all([
+      incrementarContador(env, `stats:${hoje}`, fonte, 60 * 60 * 24 * 92),  // 92 dias
+      incrementarContador(env, `stats:${mes}`,  fonte, 60 * 60 * 24 * 400), // ~13 meses
+    ]);
+  } catch (e) {
+    console.warn('Falha ao registrar estatística:', e);
+  }
+}
+
+async function incrementarContador(env, key, campo, ttl) {
+  const atual = (await env.COLETA_STATS.get(key, 'json')) || {};
+  atual[campo] = (atual[campo] || 0) + 1;
+  atual.total  = (atual.total  || 0) + 1;
+  await env.COLETA_STATS.put(key, JSON.stringify(atual), { expirationTtl: ttl });
 }
 
 // ─────────────────────────────────────────────
