@@ -23,7 +23,7 @@
     #atualizado { font-size: 0.75rem; opacity: 0.8; text-align: right; }
 
     /* ── Abas ── */
-    .abas { display: flex; gap: 0; background: var(--branco); border-bottom: 2px solid var(--borda); padding: 0 2rem; }
+    .abas { display: flex; background: var(--branco); border-bottom: 2px solid var(--borda); padding: 0 2rem; }
     .aba {
       padding: 0.8rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
       border: none; background: none; color: var(--cinza); border-bottom: 3px solid transparent;
@@ -34,21 +34,22 @@
 
     /* ── Main ── */
     main { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; display: flex; flex-direction: column; gap: 1.75rem; }
-
     .painel { display: none; flex-direction: column; gap: 1.75rem; }
     .painel.ativo { display: flex; }
 
     /* ── Cards ── */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 1rem; }
     .card { background: var(--branco); border: 1px solid var(--borda); border-radius: 12px; padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 0.25rem; }
     .card .label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--cinza); }
-    .card .valor { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
+    .card .valor { font-size: 1.85rem; font-weight: 800; line-height: 1.1; }
     .card .sub   { font-size: 0.78rem; color: var(--cinza); }
     .card.total  .valor { color: var(--texto); }
     .card.nom    .valor { color: var(--verde); }
     .card.mapbox .valor { color: var(--azul); }
     .card.google .valor { color: var(--amarelo); }
     .card.nf     .valor { color: var(--vermelho); }
+    .card.custo  .valor { color: var(--verde); }
+    .card.custo.pago .valor { color: var(--vermelho); }
 
     /* ── Seções ── */
     .secao { background: var(--branco); border: 1px solid var(--borda); border-radius: 12px; padding: 1.5rem; }
@@ -58,24 +59,41 @@
     @media (max-width: 700px) { .graficos-linha { grid-template-columns: 1fr; } }
     canvas { max-height: 280px; }
 
-    /* ── Gráfico de comparativo (2 cidades lado a lado) ── */
     .graficos-cidades { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
     @media (max-width: 700px) { .graficos-cidades { grid-template-columns: 1fr; } }
     .cidade-label { font-size: 0.8rem; font-weight: 700; text-align: center; color: var(--cinza); margin-bottom: 0.5rem; }
 
-    /* ── Tabela ── */
+    /* ── Tabelas ── */
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     th, td { padding: 0.6rem 0.75rem; text-align: right; border-bottom: 1px solid var(--borda); }
     th:first-child, td:first-child { text-align: left; }
     th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--cinza); background: var(--fundo); }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--fundo); }
+    tr.total-row td { font-weight: 700; background: var(--fundo); border-top: 2px solid var(--borda); }
 
+    /* ── Badges ── */
     .badge { display: inline-block; padding: .15em .5em; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
     .badge.nom    { background: #d4ede1; color: #1a6640; }
     .badge.mapbox { background: #d0ecf5; color: #1a5f7a; }
     .badge.google { background: #fdebd0; color: #7a4d00; }
     .badge.nf     { background: #fad7d7; color: #7a1a1a; }
+    .badge.gratis { background: #d4ede1; color: #1a6640; }
+    .badge.pago   { background: #fad7d7; color: #7a1a1a; }
+
+    /* ── Custo ── */
+    .custo-gratis { color: var(--verde); font-weight: 700; }
+    .custo-pago   { color: var(--vermelho); font-weight: 700; }
+    .custo-nota   { font-size: 0.75rem; color: var(--cinza); margin-top: 1rem; line-height: 1.5; }
+    .custo-nota strong { color: var(--texto); }
+
+    /* ── Barra de franquia ── */
+    .franquia-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .franquia-bar  { flex: 1; height: 6px; background: var(--borda); border-radius: 99px; overflow: hidden; }
+    .franquia-fill { height: 100%; border-radius: 99px; background: var(--verde); transition: width .4s; }
+    .franquia-fill.quase { background: var(--amarelo); }
+    .franquia-fill.acima { background: var(--vermelho); }
+    .franquia-pct  { font-size: 0.7rem; color: var(--cinza); white-space: nowrap; min-width: 3rem; text-align: right; }
 
     /* ── Estados ── */
     #loading, #erro { text-align: center; padding: 3rem; color: var(--cinza); font-size: .95rem; }
@@ -90,7 +108,7 @@
 <header>
   <div>
     <h1>📊 Dashboard de Geocodificação</h1>
-    <p>Consumo por provedor — Curitiba &amp; Ribeirão Preto</p>
+    <p>Consumo e estimativa de custo — Curitiba &amp; Ribeirão Preto</p>
   </div>
   <div id="atualizado"></div>
 </header>
@@ -105,15 +123,18 @@
   <div id="loading">Carregando estatísticas…</div>
   <div id="erro" class="hidden"></div>
 
-  <!-- ══ CONSOLIDADO ══ -->
+  <!-- ══════════════════ CONSOLIDADO ══════════════════ -->
   <div id="painel-consolidado" class="painel hidden">
+
     <div class="cards">
-      <div class="card total"><span class="label">Total (30 dias)</span><span class="valor" id="con-total">—</span><span class="sub">ambas as cidades</span></div>
-      <div class="card nom">  <span class="label">Nominatim</span>   <span class="valor" id="con-nom">—</span>   <span class="sub" id="con-nom-p">—</span></div>
-      <div class="card mapbox"><span class="label">Mapbox</span>      <span class="valor" id="con-mapbox">—</span><span class="sub" id="con-mapbox-p">—</span></div>
-      <div class="card google"><span class="label">Google Maps</span> <span class="valor" id="con-google">—</span><span class="sub" id="con-google-p">—</span></div>
-      <div class="card nf">   <span class="label">Não encontrado</span><span class="valor" id="con-nf">—</span> <span class="sub" id="con-nf-p">—</span></div>
+      <div class="card total"> <span class="label">Total (30 dias)</span>    <span class="valor" id="con-total">—</span>    <span class="sub">ambas as cidades</span></div>
+      <div class="card nom">   <span class="label">Nominatim</span>          <span class="valor" id="con-nom">—</span>      <span class="sub" id="con-nom-p">—</span></div>
+      <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="con-mapbox">—</span>   <span class="sub" id="con-mapbox-p">—</span></div>
+      <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="con-google">—</span>   <span class="sub" id="con-google-p">—</span></div>
+      <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="con-nf">—</span>      <span class="sub" id="con-nf-p">—</span></div>
+      <div class="card custo" id="card-custo-con"><span class="label">Custo est. este mês</span><span class="valor" id="con-custo">—</span><span class="sub" id="con-custo-sub">—</span></div>
     </div>
+
     <div class="secao">
       <h2>Últimos 30 dias — consolidado</h2>
       <div class="graficos-linha">
@@ -121,6 +142,7 @@
         <canvas id="con-pizza"></canvas>
       </div>
     </div>
+
     <div class="secao">
       <h2>Comparativo por cidade (últimos 30 dias)</h2>
       <div class="graficos-cidades">
@@ -128,18 +150,56 @@
         <div><div class="cidade-label">📍 Ribeirão Preto</div><canvas id="cmp-ribeirao"></canvas></div>
       </div>
     </div>
-    <div class="secao"><h2>Resumo mensal — consolidado</h2><table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="con-tabela"></tbody></table></div>
+
+    <div class="secao">
+      <h2>Resumo mensal — consolidado</h2>
+      <table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="con-tabela"></tbody></table>
+    </div>
+
+    <div class="secao">
+      <h2>💰 Estimativa de custo — mês corrente (consolidado)</h2>
+      <table id="con-custo-tabela">
+        <thead>
+          <tr>
+            <th>Provedor</th>
+            <th>Preço/1k req</th>
+            <th>Franquia/mês</th>
+            <th style="min-width:140px">Uso do mês</th>
+            <th>Excedente</th>
+            <th>Custo est.</th>
+          </tr>
+        </thead>
+        <tbody id="con-custo-body"></tbody>
+      </table>
+      <div class="secao" style="margin-top:1.25rem; padding:1rem; background:var(--fundo);">
+        <h2 style="margin-bottom:.75rem">Rateio por cidade</h2>
+        <table id="con-rateio-tabela">
+          <thead><tr><th>Cidade</th><th>Mapbox (req)</th><th>Google (req)</th><th>Custo est. (proporção)</th></tr></thead>
+          <tbody id="con-rateio-body"></tbody>
+        </table>
+      </div>
+      <p class="custo-nota">
+        ¹ Franquia do <strong>Mapbox</strong>: 100.000 req/mês por conta (compartilhada entre as cidades). Excedente: US$ 0,75/1.000.<br>
+        ² Franquia do <strong>Google Maps</strong>: crédito de US$ 200/mês (~40.000 req a US$ 5/1.000), por conta. Excedente: US$ 5,00/1.000.<br>
+        ³ <strong>Nominatim</strong> (OpenStreetMap) é sempre gratuito, sem limites de franquia.<br>
+        Os valores são estimativas em dólares americanos (USD) com base nos preços públicos vigentes.
+      </p>
+    </div>
+
   </div>
 
-  <!-- ══ CURITIBA ══ -->
+  <!-- ══════════════════ CURITIBA ══════════════════ -->
   <div id="painel-curitiba" class="painel hidden">
+
     <div class="cards">
-      <div class="card total"><span class="label">Total (30 dias)</span><span class="valor" id="cwb-total">—</span><span class="sub">buscas</span></div>
-      <div class="card nom">  <span class="label">Nominatim</span>    <span class="valor" id="cwb-nom">—</span>   <span class="sub" id="cwb-nom-p">—</span></div>
-      <div class="card mapbox"><span class="label">Mapbox</span>       <span class="valor" id="cwb-mapbox">—</span><span class="sub" id="cwb-mapbox-p">—</span></div>
-      <div class="card google"><span class="label">Google Maps</span>  <span class="valor" id="cwb-google">—</span><span class="sub" id="cwb-google-p">—</span></div>
-      <div class="card nf">   <span class="label">Não encontrado</span><span class="valor" id="cwb-nf">—</span>  <span class="sub" id="cwb-nf-p">—</span></div>
+      <div class="card total"> <span class="label">Total (30 dias)</span>    <span class="valor" id="cwb-total">—</span>   <span class="sub">buscas</span></div>
+      <div class="card nom">   <span class="label">Nominatim</span>          <span class="valor" id="cwb-nom">—</span>     <span class="sub" id="cwb-nom-p">—</span></div>
+      <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="cwb-mapbox">—</span>  <span class="sub" id="cwb-mapbox-p">—</span></div>
+      <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="cwb-google">—</span>  <span class="sub" id="cwb-google-p">—</span></div>
+      <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="cwb-nf">—</span>     <span class="sub" id="cwb-nf-p">—</span></div>
+      <div class="card custo" id="card-custo-cwb"><span class="label">Custo est. este mês</span><span class="valor" id="cwb-custo">—</span><span class="sub">proporção da conta</span></div>
     </div>
+
     <div class="secao">
       <h2>Últimos 30 dias — Curitiba</h2>
       <div class="graficos-linha">
@@ -147,18 +207,35 @@
         <canvas id="cwb-pizza"></canvas>
       </div>
     </div>
-    <div class="secao"><h2>Resumo mensal — Curitiba</h2><table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="cwb-tabela"></tbody></table></div>
+
+    <div class="secao">
+      <h2>Resumo mensal — Curitiba</h2>
+      <table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="cwb-tabela"></tbody></table>
+    </div>
+
+    <div class="secao">
+      <h2>💰 Estimativa de custo — mês corrente (Curitiba)</h2>
+      <table>
+        <thead><tr><th>Provedor</th><th>Uso do mês</th><th>% da conta</th><th>Custo est. proporcional</th></tr></thead>
+        <tbody id="cwb-custo-body"></tbody>
+      </table>
+      <p class="custo-nota">A franquia é por conta Mapbox/Google, compartilhada entre Curitiba e Ribeirão Preto. O custo aqui é a proporção desta cidade no eventual excedente consolidado.</p>
+    </div>
+
   </div>
 
-  <!-- ══ RIBEIRÃO ══ -->
+  <!-- ══════════════════ RIBEIRÃO ══════════════════ -->
   <div id="painel-ribeirao" class="painel hidden">
+
     <div class="cards">
-      <div class="card total"><span class="label">Total (30 dias)</span><span class="valor" id="rib-total">—</span><span class="sub">buscas</span></div>
-      <div class="card nom">  <span class="label">Nominatim</span>    <span class="valor" id="rib-nom">—</span>   <span class="sub" id="rib-nom-p">—</span></div>
-      <div class="card mapbox"><span class="label">Mapbox</span>       <span class="valor" id="rib-mapbox">—</span><span class="sub" id="rib-mapbox-p">—</span></div>
-      <div class="card google"><span class="label">Google Maps</span>  <span class="valor" id="rib-google">—</span><span class="sub" id="rib-google-p">—</span></div>
-      <div class="card nf">   <span class="label">Não encontrado</span><span class="valor" id="rib-nf">—</span>  <span class="sub" id="rib-nf-p">—</span></div>
+      <div class="card total"> <span class="label">Total (30 dias)</span>    <span class="valor" id="rib-total">—</span>   <span class="sub">buscas</span></div>
+      <div class="card nom">   <span class="label">Nominatim</span>          <span class="valor" id="rib-nom">—</span>     <span class="sub" id="rib-nom-p">—</span></div>
+      <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="rib-mapbox">—</span>  <span class="sub" id="rib-mapbox-p">—</span></div>
+      <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="rib-google">—</span>  <span class="sub" id="rib-google-p">—</span></div>
+      <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="rib-nf">—</span>     <span class="sub" id="rib-nf-p">—</span></div>
+      <div class="card custo" id="card-custo-rib"><span class="label">Custo est. este mês</span><span class="valor" id="rib-custo">—</span><span class="sub">proporção da conta</span></div>
     </div>
+
     <div class="secao">
       <h2>Últimos 30 dias — Ribeirão Preto</h2>
       <div class="graficos-linha">
@@ -166,31 +243,213 @@
         <canvas id="rib-pizza"></canvas>
       </div>
     </div>
-    <div class="secao"><h2>Resumo mensal — Ribeirão Preto</h2><table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="rib-tabela"></tbody></table></div>
+
+    <div class="secao">
+      <h2>Resumo mensal — Ribeirão Preto</h2>
+      <table><thead><tr><th>Mês</th><th>Total</th><th>Nominatim</th><th>Mapbox</th><th>Google</th><th>Não enc.</th></tr></thead><tbody id="rib-tabela"></tbody></table>
+    </div>
+
+    <div class="secao">
+      <h2>💰 Estimativa de custo — mês corrente (Ribeirão Preto)</h2>
+      <table>
+        <thead><tr><th>Provedor</th><th>Uso do mês</th><th>% da conta</th><th>Custo est. proporcional</th></tr></thead>
+        <tbody id="rib-custo-body"></tbody>
+      </table>
+      <p class="custo-nota">A franquia é por conta Mapbox/Google, compartilhada entre Curitiba e Ribeirão Preto. O custo aqui é a proporção desta cidade no eventual excedente consolidado.</p>
+    </div>
+
   </div>
 
 </main>
 
-<footer>Dados armazenados em Cloudflare KV · Curitiba &amp; Ribeirão Preto</footer>
+<footer>Dados armazenados em Cloudflare KV · Preços: Nominatim gratuito · Mapbox US$ 0,75/1k após 100k · Google Maps US$ 5,00/1k após US$ 200 de crédito</footer>
 
 <script>
-// ── Constantes ──
+// ──────────────────────────────────────────────
+// Tabela de preços (USD)
+// ──────────────────────────────────────────────
+const PRECOS = {
+  nominatim: { franquia: Infinity, por1000: 0      },
+  mapbox:    { franquia: 100_000,  por1000: 0.75   },
+  google:    { franquia: 40_000,   por1000: 5.00   },  // franquia ≈ $200 / $5 por 1k
+};
+
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
 const COR = { nominatim: '#2d8a5b', mapbox: '#3b9ebf', google: '#f5a623', not_found: '#e05252' };
-const DATASETS = fonte => [
-  { label: 'Nominatim', data: fonte.map(d => d.nominatim || 0), backgroundColor: COR.nominatim, stack: 's' },
-  { label: 'Mapbox',    data: fonte.map(d => d.mapbox    || 0), backgroundColor: COR.mapbox,    stack: 's' },
-  { label: 'Google',    data: fonte.map(d => d.google    || 0), backgroundColor: COR.google,    stack: 's' },
-  { label: 'Não enc.',  data: fonte.map(d => d.not_found || 0), backgroundColor: COR.not_found, stack: 's' },
-];
 
 function pct(parte, total) { return total ? (parte / total * 100).toFixed(1) + '%' : '0%'; }
-function fmt(n) { return (n || 0).toLocaleString('pt-BR'); }
+function fmt(n)  { return (n || 0).toLocaleString('pt-BR'); }
+function usd(v)  { return 'US$ ' + (v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 function labels30(diario) {
   return diario.map(d => { const [,m,dia] = d.dia.split('-'); return `${dia}/${m}`; });
 }
 
-// ── Abas ──
+const DATASETS = fonte => [
+  { label: 'Nominatim', data: fonte.map(d => d.nominatim  || 0), backgroundColor: COR.nominatim,  stack: 's' },
+  { label: 'Mapbox',    data: fonte.map(d => d.mapbox     || 0), backgroundColor: COR.mapbox,     stack: 's' },
+  { label: 'Google',    data: fonte.map(d => d.google     || 0), backgroundColor: COR.google,     stack: 's' },
+  { label: 'Não enc.',  data: fonte.map(d => d.not_found  || 0), backgroundColor: COR.not_found,  stack: 's' },
+];
+
+// ──────────────────────────────────────────────
+// Cálculo de custos
+// ──────────────────────────────────────────────
+function calcularCusto(provedor, uso) {
+  const p = PRECOS[provedor];
+  if (!p) return 0;
+  const excedente = Math.max(0, uso - p.franquia);
+  return excedente * p.por1000 / 1000;
+}
+
+function calcularCustos(mesCon, mesCwb, mesRib) {
+  // Consolidado (franquia compartilhada)
+  const custoMapboxCon = calcularCusto('mapbox', mesCon.mapbox || 0);
+  const custoGoogleCon = calcularCusto('google',  mesCon.google || 0);
+  const totalCon = custoMapboxCon + custoGoogleCon;
+
+  // Proporção de cada cidade no uso pago (se houver excedente)
+  const mapboxTotal = mesCon.mapbox || 0;
+  const googleTotal = mesCon.google  || 0;
+
+  const cwbMapboxPct = mapboxTotal ? (mesCwb.mapbox || 0) / mapboxTotal : 0;
+  const cwbGooglePct = googleTotal ? (mesCwb.google  || 0) / googleTotal  : 0;
+  const ribMapboxPct = mapboxTotal ? (mesRib.mapbox || 0) / mapboxTotal : 0;
+  const ribGooglePct = googleTotal ? (mesRib.google  || 0) / googleTotal  : 0;
+
+  const custoCwb = custoMapboxCon * cwbMapboxPct + custoGoogleCon * cwbGooglePct;
+  const custoRib = custoMapboxCon * ribMapboxPct + custoGoogleCon * ribGooglePct;
+
+  return { totalCon, custoMapboxCon, custoGoogleCon, custoCwb, custoRib,
+           cwbMapboxPct, cwbGooglePct, ribMapboxPct, ribGooglePct };
+}
+
+// ──────────────────────────────────────────────
+// Renderização de custos
+// ──────────────────────────────────────────────
+function franquiaBar(uso, franquia) {
+  if (franquia === Infinity) return '<span class="custo-gratis">ilimitado</span>';
+  const p = Math.min(uso / franquia * 100, 100);
+  const cls = p >= 100 ? 'acima' : p >= 80 ? 'quase' : '';
+  return `<div class="franquia-wrap">
+    <div class="franquia-bar"><div class="franquia-fill ${cls}" style="width:${p.toFixed(1)}%"></div></div>
+    <span class="franquia-pct">${fmt(uso)} / ${franquia === Infinity ? '∞' : fmt(franquia)}</span>
+  </div>`;
+}
+
+function renderizarCustosConsolidado(mesCon, mesCwb, mesRib, custos) {
+  // ── Tabela principal ──
+  const tbody = document.getElementById('con-custo-body');
+  const linhas = [
+    {
+      nome: 'Nominatim (OSM)', cls: 'nom',
+      preco: 'Gratuito', franquia: Infinity,
+      uso: mesCon.nominatim || 0,
+      excedente: 0, custo: 0,
+    },
+    {
+      nome: 'Mapbox¹', cls: 'mapbox',
+      preco: 'US$ 0,75 / 1k', franquia: PRECOS.mapbox.franquia,
+      uso: mesCon.mapbox || 0,
+      excedente: Math.max(0, (mesCon.mapbox || 0) - PRECOS.mapbox.franquia),
+      custo: custos.custoMapboxCon,
+    },
+    {
+      nome: 'Google Maps²', cls: 'google',
+      preco: 'US$ 5,00 / 1k', franquia: PRECOS.google.franquia,
+      uso: mesCon.google || 0,
+      excedente: Math.max(0, (mesCon.google || 0) - PRECOS.google.franquia),
+      custo: custos.custoGoogleCon,
+    },
+  ];
+
+  linhas.forEach(l => {
+    const tr = document.createElement('tr');
+    const custoHtml = l.custo > 0
+      ? `<span class="custo-pago">${usd(l.custo)}</span>`
+      : `<span class="custo-gratis">${usd(0)}</span>`;
+    tr.innerHTML = `
+      <td><span class="badge ${l.cls}">${l.nome}</span></td>
+      <td>${l.preco}</td>
+      <td>${franquiaBar(l.uso, l.franquia)}</td>
+      <td>${fmt(l.uso)}</td>
+      <td>${l.excedente > 0 ? '<span class="custo-pago">+' + fmt(l.excedente) + '</span>' : '—'}</td>
+      <td>${custoHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Linha total
+  const trTotal = document.createElement('tr');
+  trTotal.className = 'total-row';
+  const totalHtml = custos.totalCon > 0
+    ? `<span class="custo-pago">${usd(custos.totalCon)}</span>`
+    : `<span class="custo-gratis">${usd(0)}</span>`;
+  trTotal.innerHTML = `<td>Total</td><td>—</td><td>—</td><td>${fmt((mesCon.nominatim||0)+(mesCon.mapbox||0)+(mesCon.google||0))}</td><td>—</td><td>${totalHtml}</td>`;
+  tbody.appendChild(trTotal);
+
+  // ── Rateio por cidade ──
+  const rbody = document.getElementById('con-rateio-body');
+  const rCidades = [
+    { nome: '📍 Curitiba',       mapbox: mesCwb.mapbox||0, google: mesCwb.google||0, custo: custos.custoCwb },
+    { nome: '📍 Ribeirão Preto', mapbox: mesRib.mapbox||0, google: mesRib.google||0, custo: custos.custoRib },
+  ];
+  rCidades.forEach(c => {
+    const tr = document.createElement('tr');
+    const mapboxPct = (mesCon.mapbox||0) ? pct(c.mapbox, mesCon.mapbox) : '—';
+    const googlePct = (mesCon.google||0) ? pct(c.google, mesCon.google)  : '—';
+    const custoHtml = c.custo > 0
+      ? `<span class="custo-pago">${usd(c.custo)}</span>`
+      : `<span class="custo-gratis">${usd(0)}</span>`;
+    tr.innerHTML = `
+      <td><strong>${c.nome}</strong></td>
+      <td>${fmt(c.mapbox)} <span class="badge mapbox">${mapboxPct}</span></td>
+      <td>${fmt(c.google)}  <span class="badge google">${googlePct}</span></td>
+      <td>${custoHtml}</td>
+    `;
+    rbody.appendChild(tr);
+  });
+
+  // Card de custo total
+  const cardCon = document.getElementById('card-custo-con');
+  document.getElementById('con-custo').textContent = usd(custos.totalCon);
+  document.getElementById('con-custo-sub').textContent = custos.totalCon > 0 ? 'atenção: excedeu franquia' : 'dentro da franquia gratuita';
+  if (custos.totalCon > 0) cardCon.classList.add('pago');
+}
+
+function renderizarCustoCidade(pfx, mesCidade, mesCon, custoTotal, mapboxPct, googlePct) {
+  const tbody = document.getElementById(`${pfx}-custo-body`);
+
+  const linhas = [
+    { nome: 'Nominatim', cls: 'nom',    uso: mesCidade.nominatim||0, propPct: null,      custo: 0 },
+    { nome: 'Mapbox',    cls: 'mapbox', uso: mesCidade.mapbox||0,    propPct: mapboxPct, custo: calcularCusto('mapbox', mesCon.mapbox||0) * mapboxPct },
+    { nome: 'Google',    cls: 'google', uso: mesCidade.google||0,    propPct: googlePct, custo: calcularCusto('google', mesCon.google||0) * googlePct },
+  ];
+
+  let totalCusto = 0;
+  linhas.forEach(l => {
+    totalCusto += l.custo;
+    const tr = document.createElement('tr');
+    const custoHtml = l.custo > 0
+      ? `<span class="custo-pago">${usd(l.custo)}</span>`
+      : `<span class="custo-gratis">${usd(0)}</span>`;
+    const pctHtml = l.propPct !== null
+      ? `<span class="badge ${l.cls}">${(l.propPct * 100).toFixed(1)}%</span>`
+      : '<span class="badge gratis">∞ gratuito</span>';
+    tr.innerHTML = `<td><span class="badge ${l.cls}">${l.nome}</span></td><td>${fmt(l.uso)}</td><td>${pctHtml}</td><td>${custoHtml}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Card
+  document.getElementById(`${pfx}-custo`).textContent = usd(totalCusto);
+  if (totalCusto > 0) document.getElementById(`card-custo-${pfx}`).classList.add('pago');
+}
+
+// ──────────────────────────────────────────────
+// Abas
+// ──────────────────────────────────────────────
 document.querySelectorAll('.aba').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.aba').forEach(b => b.classList.remove('ativa'));
@@ -200,7 +459,9 @@ document.querySelectorAll('.aba').forEach(btn => {
   });
 });
 
-// ── Gráfico de barras ──
+// ──────────────────────────────────────────────
+// Gráficos
+// ──────────────────────────────────────────────
 function criarBarras(id, diario) {
   new Chart(document.getElementById(id), {
     type: 'bar',
@@ -216,7 +477,6 @@ function criarBarras(id, diario) {
   });
 }
 
-// ── Gráfico de pizza ──
 function criarPizza(id, t) {
   new Chart(document.getElementById(id), {
     type: 'doughnut',
@@ -234,7 +494,9 @@ function criarPizza(id, t) {
   });
 }
 
-// ── Cards ──
+// ──────────────────────────────────────────────
+// Cards e tabelas de uso
+// ──────────────────────────────────────────────
 function preencherCards(pfx, t) {
   document.getElementById(`${pfx}-total`).textContent  = fmt(t.total);
   document.getElementById(`${pfx}-nom`).textContent    = fmt(t.nominatim);
@@ -247,7 +509,6 @@ function preencherCards(pfx, t) {
   document.getElementById(`${pfx}-nf-p`).textContent     = pct(t.not_found, t.total) + ' do total';
 }
 
-// ── Tabela mensal ──
 function preencherTabela(tbodyId, mensal) {
   const tbody = document.getElementById(tbodyId);
   mensal.forEach(m => {
@@ -264,7 +525,9 @@ function preencherTabela(tbodyId, mensal) {
   });
 }
 
-// ── Carregar e renderizar ──
+// ──────────────────────────────────────────────
+// Carregar e renderizar
+// ──────────────────────────────────────────────
 async function carregar() {
   try {
     const resp = await fetch('/api/stats');
@@ -274,33 +537,42 @@ async function carregar() {
 
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('atualizado').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
-
-    // Ativar primeiro painel
     document.getElementById('painel-consolidado').classList.add('ativo');
 
     const con = dados.consolidado;
     const cwb = dados.cidades.curitiba;
     const rib = dados.cidades.ribeirao;
 
-    // Consolidado
+    // Mês corrente (último da lista)
+    const mesCon = con.mensal.at(-1) || {};
+    const mesCwb = cwb.mensal.at(-1) || {};
+    const mesRib = rib.mensal.at(-1) || {};
+
+    // Custos
+    const custos = calcularCustos(mesCon, mesCwb, mesRib);
+
+    // ── Consolidado ──
     preencherCards('con', con.totais_30d);
     criarBarras('con-barras', con.diario);
     criarPizza('con-pizza', con.totais_30d);
     criarBarras('cmp-curitiba', cwb.diario);
     criarBarras('cmp-ribeirao', rib.diario);
     preencherTabela('con-tabela', con.mensal);
+    renderizarCustosConsolidado(mesCon, mesCwb, mesRib, custos);
 
-    // Curitiba
+    // ── Curitiba ──
     preencherCards('cwb', cwb.totais_30d);
     criarBarras('cwb-barras', cwb.diario);
     criarPizza('cwb-pizza', cwb.totais_30d);
     preencherTabela('cwb-tabela', cwb.mensal);
+    renderizarCustoCidade('cwb', mesCwb, mesCon, custos.totalCon, custos.cwbMapboxPct, custos.cwbGooglePct);
 
-    // Ribeirão
+    // ── Ribeirão ──
     preencherCards('rib', rib.totais_30d);
     criarBarras('rib-barras', rib.diario);
     criarPizza('rib-pizza', rib.totais_30d);
     preencherTabela('rib-tabela', rib.mensal);
+    renderizarCustoCidade('rib', mesRib, mesCon, custos.custoRib, custos.ribMapboxPct, custos.ribGooglePct);
 
   } catch (e) {
     document.getElementById('loading').classList.add('hidden');
