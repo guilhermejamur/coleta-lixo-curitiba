@@ -191,47 +191,16 @@ function setupEventListeners() {
     });
 }
 
-// ===== BUSCAR ENDEREÇO (Mapbox) =====
+// ===== BUSCAR ENDEREÇO (via /api/geocode — Nominatim + Mapbox + Google) =====
 async function buscarEndereco(query) {
     try {
-        const [lat, lon] = config.cidade.coordenadas;
-        // config.boundingBox: west,north,east,south → Mapbox bbox: west,south,east,north
-        const bb = config.cidade.boundingBox.split(',');
-        const bbox = `${bb[0]},${bb[3]},${bb[2]},${bb[1]}`;
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${config.mapboxToken}&country=BR&proximity=${lon},${lat}&bbox=${bbox}&types=address&language=pt&limit=5`;
-
-        const response = await fetch(url);
-        const data = await response.json();
         const numeroDigitado = extrairNumeroDoTexto(query);
-
-        const resultados = (data.features || []).map(feature => ({
-            lat: feature.center[1],
-            lon: feature.center[0],
-            display_name: feature.place_name,
-            address: extrairEnderecoMapbox(feature)
-        }));
-
-        mostrarAutocomplete(resultados, numeroDigitado);
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+        const resultados = await response.json();
+        mostrarAutocomplete(Array.isArray(resultados) ? resultados : [], numeroDigitado);
     } catch (error) {
         console.error('Erro na busca:', error);
     }
-}
-
-function extrairEnderecoMapbox(feature) {
-    const context = feature.context || [];
-    const address = {};
-
-    if (feature.text) address.road = feature.text;
-    if (feature.address) address.house_number = feature.address;
-
-    context.forEach(item => {
-        if (item.id.startsWith('neighborhood')) address.suburb = item.text;
-        else if (item.id.startsWith('locality')) address.suburb = address.suburb || item.text;
-        else if (item.id.startsWith('place')) address.city = item.text;
-        else if (item.id.startsWith('district')) address.district = item.text;
-    });
-
-    return address;
 }
 
 function extrairNumeroDoTexto(texto) {
@@ -360,10 +329,12 @@ function usarGeolocalizacao() {
 // ===== PROCESSAR LOCALIZAÇÃO =====
 async function processarLocalizacao(lat, lon, endereco) {
     mostrarLoading(true);
-    
-    // Buscar informações nas áreas
-    const infoSeletiva = encontrarAreaNoGeoJSON(lat, lon, geoDataSeletiva);
-    const infoDomiciliar = encontrarAreaNoGeoJSON(lat, lon, geoDataDomiciliar);
+
+    // Busca exata primeiro; se não encontrar, tenta por proximidade (~22m)
+    const infoSeletiva = encontrarAreaNoGeoJSON(lat, lon, geoDataSeletiva)
+        || encontrarAreaNoGeoJSON(lat, lon, geoDataSeletiva, true);
+    const infoDomiciliar = encontrarAreaNoGeoJSON(lat, lon, geoDataDomiciliar)
+        || encontrarAreaNoGeoJSON(lat, lon, geoDataDomiciliar, true);
     
     // Atualizar UI
     atualizarResultados(infoSeletiva, infoDomiciliar, endereco);
@@ -376,18 +347,60 @@ async function processarLocalizacao(lat, lon, endereco) {
 }
 
 // ===== ENCONTRAR ÁREA NO GeoJSON =====
-function encontrarAreaNoGeoJSON(lat, lon, geoData) {
+function encontrarAreaNoGeoJSON(lat, lon, geoData, usarFallbackDistancia = false) {
     if (!geoData || !geoData.features) return null;
-    
+
     const ponto = [lon, lat]; // GeoJSON usa [lon, lat]
-    
+
+    // 1. Busca exata: ponto dentro do polígono
     for (const feature of geoData.features) {
         if (pontoEmPoligono(ponto, feature.geometry)) {
             return feature.properties;
         }
     }
-    
+
+    // 2. Fallback por proximidade: ponto sobre borda de polígono (~22m)
+    if (usarFallbackDistancia) {
+        const THRESHOLD = 0.0002;
+        let menorDist = Infinity;
+        let maisProximo = null;
+
+        for (const feature of geoData.features) {
+            if (!feature.geometry) continue;
+            const dist = distanciaMinPoligono(ponto, feature.geometry);
+            if (dist < menorDist) {
+                menorDist = dist;
+                maisProximo = feature.properties;
+            }
+        }
+
+        if (menorDist <= THRESHOLD) return maisProximo;
+    }
+
     return null;
+}
+
+// ===== DISTÂNCIA MÍNIMA PONTO → POLÍGONO =====
+function distanciaMinPoligono(ponto, geometria) {
+    if (!geometria) return Infinity;
+    const coords = geometria.type === 'Polygon' ? [geometria.coordinates] : geometria.coordinates;
+    let min = Infinity;
+    for (const pol of coords) {
+        for (const anel of pol) {
+            for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
+                const d = distPontoSegmento(ponto, anel[i], anel[j]);
+                if (d < min) min = d;
+            }
+        }
+    }
+    return min;
+}
+
+function distPontoSegmento([px, py], [ax, ay], [bx, by]) {
+    const dx = bx - ax, dy = by - ay;
+    if (dx === 0 && dy === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+    return Math.sqrt((px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2);
 }
 
 // ===== PONTO EM POLÍGONO (Ray Casting) =====

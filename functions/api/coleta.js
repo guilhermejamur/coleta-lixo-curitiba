@@ -52,7 +52,7 @@ export async function onRequest(context) {
     // --- Geocodificação por endereço ---
     } else if (enderecoParam) {
       const config = await carregarConfig(request, env);
-      const geocoded = await geocodificar(enderecoParam, config.mapboxToken, config);
+      const geocoded = await geocodificar(enderecoParam, config, env);
 
       if (!geocoded) {
         return jsonResponse({
@@ -81,9 +81,11 @@ export async function onRequest(context) {
       carregarGeoJSON('coleta_domiciliar', request, env),
     ]);
 
-    // --- Point-in-polygon ---
-    const infoSeletiva = encontrarArea(finalLng, finalLat, seletiva);
-    const infoDomiciliar = encontrarArea(finalLng, finalLat, domiciliar);
+    // --- Point-in-polygon (exato, depois fallback por proximidade ~22m) ---
+    const infoSeletiva = encontrarArea(finalLng, finalLat, seletiva)
+      || encontrarArea(finalLng, finalLat, seletiva, true);
+    const infoDomiciliar = encontrarArea(finalLng, finalLat, domiciliar)
+      || encontrarArea(finalLng, finalLat, domiciliar, true);
     const encontrado = !!(infoSeletiva || infoDomiciliar);
 
     const resposta = {
@@ -143,13 +145,89 @@ async function carregarConfig(request, env) {
 }
 
 // ─────────────────────────────────────────────
-// Geocodificação via Mapbox
-// O Worker não envia Referer automaticamente, então precisamos
-// enviá-lo manualmente para passar na validação do token (pk.).
-// O domínio abaixo deve estar na lista de URLs permitidas no Mapbox:
-//   mapbox.com → Account → Tokens → editar token → Allowed URLs
+// Geocodificação: Nominatim → Mapbox → Google Maps
+// Tokens e chaves nunca são expostos ao cliente.
 // ─────────────────────────────────────────────
-async function geocodificar(endereco, token, config) {
+async function geocodificar(endereco, config, env) {
+  const resultNominatim = await geocodificarNominatim(endereco, config);
+  if (resultNominatim) return resultNominatim;
+
+  const resultMapbox = await geocodificarMapbox(endereco, config);
+  if (resultMapbox) return resultMapbox;
+
+  if (env.GOOGLE_MAPS_KEY) {
+    return await geocodificarGoogle(endereco, config, env.GOOGLE_MAPS_KEY);
+  }
+
+  return null;
+}
+
+async function geocodificarNominatim(endereco, config) {
+  try {
+    const cidade = config.cidade;
+    const [west, north, east, south] = cidade.boundingBox.split(',').map(Number);
+
+    const params = new URLSearchParams({
+      q: `${endereco}, ${cidade.nome}, ${cidade.estado}, Brasil`,
+      format: 'json',
+      limit: '1',
+      countrycodes: 'br',
+      bounded: '1',
+      viewbox: `${west},${south},${east},${north}`,
+      addressdetails: '1',
+      'accept-language': 'pt',
+    });
+
+    const resp = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}`,
+      {
+        headers: {
+          'User-Agent': `coleta-lixo-${cidade.nome.toLowerCase().replace(/\s+/g, '-')}/1.0`,
+          'Accept-Language': 'pt',
+        },
+      }
+    );
+
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data?.length) return null;
+
+    const stopWords = new Set([
+      'rua', 'avenida', 'av', 'alameda', 'al', 'travessa', 'tv', 'estrada',
+      'est', 'praca', 'pc', 'de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o',
+      'pr', 'br', 'brasil',
+    ]);
+    const cidadeNorm = cidade.nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+    const palavrasQuery = endereco
+      .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+      .filter(w => w.length > 2 && !stopWords.has(w) && !/^\d+$/.test(w) && !cidadeNorm.includes(w));
+
+    const result = data.find(r => {
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      if (lat < south || lat > north || lng < west || lng > east) return false;
+
+      if (palavrasQuery.length > 0) {
+        const addr = r.address || {};
+        const rua = (addr.road || addr.pedestrian || r.display_name || '')
+          .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (palavrasQuery.filter(w => rua.includes(w)).length === 0) return false;
+      }
+
+      return true;
+    });
+
+    if (!result) return null;
+    return { lat: parseFloat(result.lat), lng: parseFloat(result.lon), display_name: result.display_name };
+  } catch {
+    return null;
+  }
+}
+
+async function geocodificarMapbox(endereco, config) {
+  const token = config.mapboxToken;
   const bb = config.cidade?.boundingBox?.split(',') || [];
   const bbox = bb.length === 4 ? `${bb[0]},${bb[3]},${bb[2]},${bb[1]}` : '';
   const [lat, lon] = config.cidade?.coordenadas || [];
@@ -164,40 +242,110 @@ async function geocodificar(endereco, token, config) {
     ...(bbox ? { bbox } : {}),
   });
 
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(endereco)}.json?${params}`;
-
-  const resp = await fetch(url, {
-    headers: {
-      // Necessário para passar a validação de domínio do token Mapbox (pk.)
-      // Adicione este domínio na lista de URLs permitidas em:
-      //   mapbox.com → Account → Tokens → editar token → Allowed URLs
-      'Referer': 'https://coleta-lixo-curitiba.pages.dev',
-      'Origin': 'https://coleta-lixo-curitiba.pages.dev',
-    },
-  });
+  const resp = await fetch(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(endereco)}.json?${params}`,
+    { headers: { 'Referer': 'https://coleta-lixo-curitiba.pages.dev' } }
+  );
 
   const data = await resp.json();
   if (!data.features?.length) return null;
 
-  const feature = data.features[0];
+  const cidadeNorm = config.cidade.nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const feature = data.features.find(f => {
+    const ctx = f.context || [];
+    const cidadeCtx = (ctx.find(c => c.id?.startsWith('place'))?.text || '')
+      .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return cidadeCtx.includes(cidadeNorm);
+  });
+
+  if (!feature) return null;
+  return { lat: feature.center[1], lng: feature.center[0], display_name: feature.place_name };
+}
+
+async function geocodificarGoogle(endereco, config, apiKey) {
+  const cidade = config.cidade;
+  const [west, north, east, south] = cidade.boundingBox.split(',').map(Number);
+
+  const params = new URLSearchParams({
+    address: `${endereco}, ${cidade.nome}, PR, Brasil`,
+    key: apiKey,
+    language: 'pt',
+    region: 'br',
+    components: 'country:BR',
+  });
+
+  const resp = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params}`);
+  const data = await resp.json();
+  if (data.status !== 'OK' || !data.results?.length) return null;
+
+  const result = data.results.find(r => {
+    const { lat, lng } = r.geometry.location;
+    return lat >= south && lat <= north && lng >= west && lng <= east;
+  });
+
+  if (!result) return null;
   return {
-    lat: feature.center[1],
-    lng: feature.center[0],
-    display_name: feature.place_name,
+    lat: result.geometry.location.lat,
+    lng: result.geometry.location.lng,
+    display_name: result.formatted_address,
   };
 }
 
 // ─────────────────────────────────────────────
-// Point-in-polygon (Ray Casting)
+// Point-in-polygon com fallback por proximidade (~22m)
+// Útil para coordenadas no centro de avenidas que fazem fronteira entre setores.
 // ─────────────────────────────────────────────
-function encontrarArea(lng, lat, geoData) {
+function encontrarArea(lng, lat, geoData, usarFallbackDistancia = false) {
   if (!geoData?.features?.length) return null;
+
+  // 1. Busca exata: ponto dentro do polígono
   for (const feature of geoData.features) {
     if (pontoEmPoligono([lng, lat], feature.geometry)) {
       return feature.properties;
     }
   }
+
+  // 2. Fallback por proximidade: ponto sobre borda de polígono (~22m)
+  if (usarFallbackDistancia) {
+    const THRESHOLD = 0.0002;
+    let menorDist = Infinity;
+    let maisProximo = null;
+
+    for (const feature of geoData.features) {
+      if (!feature.geometry) continue;
+      const dist = distanciaMinPoligono([lng, lat], feature.geometry);
+      if (dist < menorDist) {
+        menorDist = dist;
+        maisProximo = feature.properties;
+      }
+    }
+
+    if (menorDist <= THRESHOLD) return maisProximo;
+  }
+
   return null;
+}
+
+function distanciaMinPoligono(ponto, geometria) {
+  if (!geometria) return Infinity;
+  const coords = geometria.type === 'Polygon' ? [geometria.coordinates] : geometria.coordinates;
+  let min = Infinity;
+  for (const pol of coords) {
+    for (const anel of pol) {
+      for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) {
+        const d = distPontoSegmento(ponto, anel[i], anel[j]);
+        if (d < min) min = d;
+      }
+    }
+  }
+  return min;
+}
+
+function distPontoSegmento([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay;
+  if (dx === 0 && dy === 0) return Math.sqrt((px - ax) ** 2 + (py - ay) ** 2);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.sqrt((px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2);
 }
 
 function pontoEmPoligono(ponto, geometria) {

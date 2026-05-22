@@ -1,0 +1,12 @@
+{
+  "name": "coleta-lixo-curitiba",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev coleta-lixo --compatibility-date 2024-09-23",
+    "deploy": "wrangler pages deploy coleta-lixo --project-name=coleta-lixo-curitiba --commit-dirty=true"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

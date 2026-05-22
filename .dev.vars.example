@@ -1,0 +1,6 @@
+# Copie este arquivo para .dev.vars e preencha os valores para desenvolvimento local.
+# O arquivo .dev.vars nunca deve ser commitado (já está no .gitignore).
+
+# Chave do Google Maps — usada como fallback de geocodificação quando Nominatim e Mapbox falham.
+# Opcional: se não preenchida, o fallback para Google simplesmente não é ativado.
+GOOGLE_MAPS_KEY=
