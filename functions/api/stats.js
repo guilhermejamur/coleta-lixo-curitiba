@@ -26,19 +26,18 @@ export async function onRequest(context) {
     }
     const meses = [...new Set(dias.map(d => d.slice(0, 7)))];
 
-    // Busca em paralelo para todas as cidades
+    // Busca em paralelo para todas as cidades (só chaves diárias — mensal é derivado)
     const dadosPorCidade = {};
     await Promise.all(CIDADES.map(async cidade => {
-      const [diario, mensal] = await Promise.all([
-        Promise.all(dias.map(async dia => {
-          const d = await env.COLETA_STATS.get(`stats:${cidade}:${dia}`, 'json');
-          return { dia, ...(d || zero()) };
-        })),
-        Promise.all(meses.map(async mes => {
-          const d = await env.COLETA_STATS.get(`stats:${cidade}:${mes}`, 'json');
-          return { mes, ...(d || zero()) };
-        })),
-      ]);
+      const diario = await Promise.all(dias.map(async dia => {
+        const d = await env.COLETA_STATS.get(`stats:${cidade}:${dia}`, 'json');
+        return { dia, ...(d || zero()) };
+      }));
+      // Mensal derivado dos dias (sem chave KV separada)
+      const mensal = meses.map(mes => {
+        const diasDoMes = diario.filter(d => d.dia.startsWith(mes));
+        return { mes, ...somar(diasDoMes) };
+      });
       dadosPorCidade[cidade] = { diario, mensal, totais_30d: somar(diario) };
     }));
 
@@ -56,16 +55,8 @@ export async function onRequest(context) {
       return acc;
     });
     const consolidadoMensal = meses.map(mes => {
-      const acc = { mes, ...zero() };
-      for (const cidade of CIDADES) {
-        const d = dadosPorCidade[cidade].mensal.find(x => x.mes === mes) || zero();
-        acc.nominatim += d.nominatim || 0;
-        acc.mapbox    += d.mapbox    || 0;
-        acc.google    += d.google    || 0;
-        acc.not_found += d.not_found || 0;
-        acc.total     += d.total     || 0;
-      }
-      return acc;
+      const diasDoMes = consolidadoDiario.filter(d => d.dia.startsWith(mes));
+      return { mes, ...somar(diasDoMes) };
     });
 
     return jsonResponse({

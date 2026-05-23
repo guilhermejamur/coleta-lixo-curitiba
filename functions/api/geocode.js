@@ -88,11 +88,9 @@ async function registrarEstatistica(env, cidade, fonte) {
   if (!env.COLETA_STATS) return;
   try {
     const hoje = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
-    const mes  = hoje.slice(0, 7);                        // YYYY-MM
-    await Promise.all([
-      incrementarContador(env, `stats:${cidade}:${hoje}`, fonte, 60 * 60 * 24 * 92),  // 92 dias
-      incrementarContador(env, `stats:${cidade}:${mes}`,  fonte, 60 * 60 * 24 * 400), // ~13 meses
-    ]);
+    // Apenas chave diária — mensal é calculado em stats.js a partir dos dias.
+    // 1 write/requisição em vez de 2, para não exceder o limite gratuito de 1.000 puts/dia.
+    await incrementarContador(env, `stats:${cidade}:${hoje}`, fonte, 60 * 60 * 24 * 92);
   } catch (e) {
     console.warn('Falha ao registrar estatística:', e);
   }
