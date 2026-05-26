@@ -55,12 +55,15 @@ export async function onRequest(context) {
       const geocoded = await geocodificar(enderecoParam, config, env);
 
       if (!geocoded) {
+        context.waitUntil(registrarEstatistica(env, 'curitiba', 'chatbot'));
         return jsonResponse({
           erro: 'Endereço não encontrado.',
           dica: 'Tente incluir cidade e estado. Ex: Rua XV de Novembro 700 Curitiba PR'
         }, 404);
       }
 
+      // Registra 1 chamada de chatbot (campo separado do breakdown de browser)
+      context.waitUntil(registrarEstatistica(env, 'curitiba', 'chatbot'));
       finalLat = geocoded.lat;
       finalLng = geocoded.lng;
       enderecoUsado = geocoded.display_name;
@@ -150,16 +153,37 @@ async function carregarConfig(request, env) {
 // ─────────────────────────────────────────────
 async function geocodificar(endereco, config, env) {
   const resultNominatim = await geocodificarNominatim(endereco, config);
-  if (resultNominatim) return resultNominatim;
+  if (resultNominatim) return { ...resultNominatim, _fonte: 'nominatim' };
 
   const resultMapbox = await geocodificarMapbox(endereco, config);
-  if (resultMapbox) return resultMapbox;
+  if (resultMapbox) return { ...resultMapbox, _fonte: 'mapbox' };
 
   if (env.GOOGLE_MAPS_KEY) {
-    return await geocodificarGoogle(endereco, config, env.GOOGLE_MAPS_KEY);
+    const resultGoogle = await geocodificarGoogle(endereco, config, env.GOOGLE_MAPS_KEY);
+    if (resultGoogle) return { ...resultGoogle, _fonte: 'google' };
   }
 
   return null;
+}
+
+// ─────────────────────────────────────────────
+// Estatísticas de uso (KV compartilhado)
+// ─────────────────────────────────────────────
+async function registrarEstatistica(env, cidade, fonte) {
+  if (!env.COLETA_STATS) return;
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);
+    await incrementarContador(env, `stats:${cidade}:${hoje}`, fonte, 60 * 60 * 24 * 92);
+  } catch (e) {
+    console.warn('Falha ao registrar estatística:', e);
+  }
+}
+
+async function incrementarContador(env, key, campo, ttl) {
+  const atual = (await env.COLETA_STATS.get(key, 'json')) || {};
+  atual[campo] = (atual[campo] || 0) + 1;
+  atual.total  = (atual.total  || 0) + 1;
+  await env.COLETA_STATS.put(key, JSON.stringify(atual), { expirationTtl: ttl });
 }
 
 async function geocodificarNominatim(endereco, config) {

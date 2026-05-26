@@ -131,6 +131,7 @@
       <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="con-mapbox">—</span>   <span class="sub" id="con-mapbox-p">—</span></div>
       <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="con-google">—</span>   <span class="sub" id="con-google-p">—</span></div>
       <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="con-nf">—</span>      <span class="sub" id="con-nf-p">—</span></div>
+      <div class="card" style="border-left:4px solid #8b5cf6"><span class="label">Chatbot (n8n)</span><span class="valor" id="con-chatbot" style="color:#8b5cf6">—</span><span class="sub">consultas via API</span></div>
       <div class="card custo" id="card-custo-con"><span class="label">Custo est. este mês</span><span class="valor" id="con-custo">—</span><span class="sub" id="con-custo-sub">—</span></div>
     </div>
 
@@ -196,6 +197,7 @@
       <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="cwb-mapbox">—</span>  <span class="sub" id="cwb-mapbox-p">—</span></div>
       <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="cwb-google">—</span>  <span class="sub" id="cwb-google-p">—</span></div>
       <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="cwb-nf">—</span>     <span class="sub" id="cwb-nf-p">—</span></div>
+      <div class="card" style="border-left:4px solid #8b5cf6"><span class="label">Chatbot (n8n)</span><span class="valor" id="cwb-chatbot" style="color:#8b5cf6">—</span><span class="sub">consultas via API</span></div>
       <div class="card custo" id="card-custo-cwb"><span class="label">Custo est. este mês</span><span class="valor" id="cwb-custo">—</span><span class="sub">proporção da conta</span></div>
     </div>
 
@@ -232,6 +234,7 @@
       <div class="card mapbox"><span class="label">Mapbox</span>             <span class="valor" id="rib-mapbox">—</span>  <span class="sub" id="rib-mapbox-p">—</span></div>
       <div class="card google"><span class="label">Google Maps</span>        <span class="valor" id="rib-google">—</span>  <span class="sub" id="rib-google-p">—</span></div>
       <div class="card nf">    <span class="label">Não encontrado</span>     <span class="valor" id="rib-nf">—</span>     <span class="sub" id="rib-nf-p">—</span></div>
+      <div class="card" style="border-left:4px solid #8b5cf6"><span class="label">Chatbot (n8n)</span><span class="valor" id="rib-chatbot" style="color:#8b5cf6">—</span><span class="sub">consultas via API</span></div>
       <div class="card custo" id="card-custo-rib"><span class="label">Custo est. este mês</span><span class="valor" id="rib-custo">—</span><span class="sub">proporção da conta</span></div>
     </div>
 
@@ -504,6 +507,7 @@ function preencherCards(pfx, t) {
   document.getElementById(`${pfx}-mapbox`).textContent = fmt(t.mapbox);
   document.getElementById(`${pfx}-google`).textContent = fmt(t.google);
   document.getElementById(`${pfx}-nf`).textContent     = fmt(t.not_found);
+  document.getElementById(`${pfx}-chatbot`).textContent = fmt(t.chatbot || 0);
   document.getElementById(`${pfx}-nom-p`).textContent    = pct(t.nominatim, t.total) + ' do total';
   document.getElementById(`${pfx}-mapbox-p`).textContent = pct(t.mapbox,    t.total) + ' do total';
   document.getElementById(`${pfx}-google-p`).textContent = pct(t.google,    t.total) + ' do total';

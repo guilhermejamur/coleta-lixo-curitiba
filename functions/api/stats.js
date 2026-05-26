@@ -76,7 +76,7 @@ export async function onRequest(context) {
 }
 
 function zero() {
-  return { nominatim: 0, mapbox: 0, google: 0, not_found: 0, total: 0 };
+  return { nominatim: 0, mapbox: 0, google: 0, not_found: 0, chatbot: 0, total: 0 };
 }
 
 function somar(lista) {
@@ -85,6 +85,7 @@ function somar(lista) {
     acc.mapbox    += d.mapbox    || 0;
     acc.google    += d.google    || 0;
     acc.not_found += d.not_found || 0;
+    acc.chatbot   += d.chatbot   || 0;
     acc.total     += d.total     || 0;
     return acc;
   }, zero());
