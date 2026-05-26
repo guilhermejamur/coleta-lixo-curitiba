@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — Geocodificação</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -264,6 +263,8 @@
 
 <footer>Dados armazenados em Cloudflare KV · Preços: Nominatim gratuito · Mapbox US$ 0,75/1k após 100k · Google Maps US$ 5,00/1k após US$ 200 de crédito</footer>
 
+<!-- Chart.js carregado no body para garantir disponibilidade antes do script inline -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 // ──────────────────────────────────────────────
 // Tabela de preços (USD)

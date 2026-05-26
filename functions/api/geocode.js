@@ -38,6 +38,8 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const query = url.searchParams.get('q')?.trim();
+  // ?s=0 → chamada de autocomplete (não grava stat). Omitido ou ?s=1 → grava.
+  const gravarStat = url.searchParams.get('s') !== '0';
 
   if (!query || query.length < 3) {
     return jsonResponse({ erro: 'Parâmetro q obrigatório (mínimo 3 caracteres).' }, 400);
@@ -70,8 +72,8 @@ export async function onRequest(context) {
       }
     }
 
-    // Registrar estatística sem bloquear a resposta
-    context.waitUntil(registrarEstatistica(env, 'curitiba', fonte));
+    // Registrar estatística apenas na seleção final (não no autocomplete)
+    if (gravarStat) context.waitUntil(registrarEstatistica(env, 'curitiba', fonte));
 
     return jsonResponse(resultados);
 

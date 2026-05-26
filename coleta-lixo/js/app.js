@@ -195,7 +195,8 @@ function setupEventListeners() {
 async function buscarEndereco(query) {
     try {
         const numeroDigitado = extrairNumeroDoTexto(query);
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+        // ?s=0 → autocomplete (não grava stat no KV)
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}&s=0`);
         const resultados = await response.json();
         mostrarAutocomplete(Array.isArray(resultados) ? resultados : [], numeroDigitado);
     } catch (error) {
