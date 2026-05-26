@@ -341,9 +341,7 @@ async function processarLocalizacao(lat, lon, endereco) {
     atualizarMapa(lat, lon, infoSeletiva, infoDomiciliar);
     
     mostrarLoading(false);
-    
-    // Scroll para resultados
-    document.getElementById('resultados').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // scrollIntoView removido: página é embarcada em iframe e o pai gerencia o scroll
 }
 
 // ===== ENCONTRAR ÁREA NO GeoJSON =====
